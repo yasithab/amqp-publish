@@ -1,0 +1,67 @@
+version: 2
+
+project_name: amqp-publish
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w -X main.Version={{.Version}}
+    hooks:
+      post:
+        - sh -c 'if [ "{{ .Os }}" != "darwin" ]; then upx --best {{ .Path }}; fi'
+
+archives:
+  - formats: [ 'tar.gz' ]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: [ 'zip' ]
+
+brews:
+  - repository:
+      owner: yasithab
+      name: homebrew-amqp-publish
+      token: "{{ .Env.HOMEBREW_GITHUB_API_TOKEN }}"
+    commit_author:
+      name: "Yasitha Bogamuwa"
+      email: info@yasitha.dev
+    homepage: https://github.com/yasithab/amqp-publish
+    description: "A command-line tool for publishing messages to a RabbitMQ server"
+    skip_upload: false
+    test: |
+      system "#{bin}/amqp-publish --version"
+    install: |
+      bin.install "amqp-publish"
+
+release:
+  github:
+    owner: yasithab
+    name: amqp-publish
+  draft: false
+  prerelease: auto
+
+checksum:
+  name_template: "{{ .ProjectName }}_checksums.txt"
+  algorithm: sha256
